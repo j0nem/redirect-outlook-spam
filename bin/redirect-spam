@@ -77,28 +77,34 @@ if($intAll > 0) {
 	$mailer = new Swift_Mailer($transport);
 
 	$arrCounter = 0;
+	$failures = [];
+	$successes = 0;
 	foreach($emails as $id => $email) {
 		//get data
 		$fromAddress = $email->header->details->from[0]->mailbox.'@'.$email->header->details->from[0]->host;
 		$fromName = $email->header->from;
 		$subject = '[FROM SPAM] '.$email->header->subject;
 		$isHtml = $email->message->html->structure->subtype == 'HTML';
-		$htmlBody = $email->message->html->body;
+		if($isHtml) {
+			$htmlBody = $email->message->html->body;
+		}
 		$plainBody = $email->message->plain->body;
 
 		//prepare message
 		$message = (new Swift_Message($subject))
 			->setReplyTo([$fromAddress => $fromName])
 			->setFrom([$fromName => $authEmail])
-			->setTo($sendTo)
-			->setBody($htmlBody,'text/html')
-			->addPart($plainBody,'text/plain')
-		;
+			->setTo($sendTo);
+		if($isHtml) {
+			$message->setBody($htmlBody,'text/html')
+					->addPart($plainBody,'text/plain');
+		}
+		else {
+			$message->setBody($plainBody,'text/plain');
+		}
 		
 		//send message
 		$arrCounter++;
-		$failures = [];
-		$successes = 0;
 		$result = $mailer->send($message,$failure);
 		if(!$result) {
 			$failures[] = $failure;
