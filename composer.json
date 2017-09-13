@@ -1,0 +1,8 @@
+{
+    "name": "j0nem/redirect-outlook-spam",
+    "type": "library",
+    "require": {
+        "swiftmailer/swiftmailer": "^6.0",
+        "ssilence/php-imap-client": "dev-master"
+    }
+}

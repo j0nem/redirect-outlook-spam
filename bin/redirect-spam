@@ -1,0 +1,126 @@
+#!/usr/bin/php
+<?php 
+
+/*
+* @author Johannes Cram <johannes@jonesmedia.de>
+*/
+
+function includeIfExists($file) {
+    if (file_exists($file)) {
+        return include_once $file;
+    }
+}
+
+//check if dependencies are set up
+if ((!$loader = includeIfExists(__DIR__.'/../vendor/autoload.php')) && (!$loader = includeIfExists(__DIR__.'/../../../autoload.php'))) {
+	echo PHP_EOL.
+	"// You have to install the project dependencies via composer!\n\n".
+	die();
+}
+
+use SSilence\ImapClient\ImapClientException;
+use SSilence\ImapClient\ImapConnect;
+use SSilence\ImapClient\ImapClient as Imap;
+
+/*
+* Set variables
+*/
+
+$imapHost = 'imap-mail.outlook.com';
+$imapPort = 993;
+$imapEnc = 'tls';
+
+$smtpHost = 'smtp-mail.outlook.com';
+$smtpPort = 587;
+$smtpEnc = 'tls';
+
+//show help
+if($argc != 4 || in_array($argv[1], array('--help', '-help', '-h', '-?'))) {
+	echo PHP_EOL."// CLI Tool to redirect emails from an outlook.com spam folder to another email address.\n";
+	echo PHP_EOL."// Usage: 'php bin/redirect-spam <authEmail> <authPassword> <sendToEmail>'\n\n";
+	die();
+}
+
+$authEmail = $argv[1];
+$authPass = $argv[2];
+$sendTo = [ $argv[3] ];
+
+//Construct Imap Client and check login data
+try {
+	if($imapEnc == 'tls') {
+		$enc = Imap::ENCRYPT_TLS;
+	}
+	else {
+		$enc = null;
+	}
+	$imap = new Imap($imapHost,$authEmail,$authPass,$enc);
+}
+catch(ImapClientException $error) {
+	echo $error->getInfo().PHP_EOL;
+	die();
+}
+
+// select folder Junk
+$imap->selectFolder('Junk');
+
+// count messages in current folder
+$intAll = $imap->countMessages();
+
+if($intAll > 0) {
+	//fetch all messages in the spam folder
+	$emails = $imap->getMessages(true);
+
+	//initialize Swiftmailer
+	$transport = (new Swift_SmtpTransport($smtpHost,$smtpPort,$smtpEnc))
+		->setUsername($authEmail)
+		->setPassword($authPass);
+	$mailer = new Swift_Mailer($transport);
+
+	$arrCounter = 0;
+	foreach($emails as $id => $email) {
+		//get data
+		$fromAddress = $email->header->details->from[0]->mailbox.'@'.$email->header->details->from[0]->host;
+		$fromName = $email->header->from;
+		$subject = '[FROM SPAM] '.$email->header->subject;
+		$isHtml = $email->message->html->structure->subtype == 'HTML';
+		$htmlBody = $email->message->html->body;
+		$plainBody = $email->message->plain->body;
+
+		//prepare message
+		$message = (new Swift_Message($subject))
+			->setReplyTo([$fromAddress => $fromName])
+			->setFrom([$fromName => $authEmail])
+			->setTo($sendTo)
+			->setBody($htmlBody,'text/html')
+			->addPart($plainBody,'text/plain')
+		;
+		
+		//send message
+		$arrCounter++;
+		$failures = [];
+		$successes = 0;
+		$result = $mailer->send($message,$failure);
+		if(!$result) {
+			$failures[] = $failure;
+		}
+		else {
+			$successes += $result;
+		}
+
+		//move message to inbox
+		$imap->moveMessage($email->header->uid,'Inbox');
+	}
+	if($failures) {
+		echo PHP_EOL."Failures: \n\n";
+		print_r($failures,true);
+		echo "\n\n";
+	}
+	if($successes) {
+		echo PHP_EOL."Mails successfully sent: ".$successes."\n\n";
+	}
+}
+else {
+	echo PHP_EOL."Nothing to do.\n\n";
+}
+
+?>
