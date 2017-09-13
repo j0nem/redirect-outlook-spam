@@ -93,7 +93,7 @@ if($intAll > 0) {
 		//prepare message
 		$message = (new Swift_Message($subject))
 			->setReplyTo([$fromAddress => $fromName])
-			->setFrom([$fromName => $authEmail])
+			->setFrom([ $authEmail => $fromName ])
 			->setTo($sendTo);
 		if($isHtml) {
 			$message->setBody($htmlBody,'text/html')
