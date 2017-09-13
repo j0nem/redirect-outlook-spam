@@ -1,9 +1,9 @@
 # Redirect outlook.com "junk" emails
 PHP CLI tool to redirect spam from the outlook `Junk`-folder to another mailbox
 
-If you use an outlook.com email address, you may found out that the spam filter of the platform does not really work. In my case, 70-80% of important emails are marked as junk.
+If you use an outlook.com mailbox, you may found out that the spam filter of the platform does not really work. In my case, 70-80% of important emails are marked as junk.
 
-Because the filter options on outlook.com are applied AFTER the junk filtering, there is no native option to handle new incoming "spam" mails. This tool connects via IMAP to outlook.com and redirects all emails in the folder to the given address. After that, it moves the email to the Inbox.
+Because the filter options on outlook.com are applied AFTER the junk filtering, there is no native option to handle new incoming "spam" mails. This tool connects via IMAP to your outlook.com mailbox and redirects all emails in the folder to the given mail address via the outlook.com SMTP server. After that, it moves the emails to the Inbox.
 
 # Installation:
 Via composer in an existing project:
